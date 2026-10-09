@@ -12,7 +12,6 @@ export type AuthState = {
 
 export type SignUpProfile = {
   full_name: string;
-  role: 'student' | 'teacher';
 };
 
 let state: AuthState = { session: null, user: null, loading: true };
@@ -64,7 +63,6 @@ export async function signUp(
         ? {
             data: {
               full_name: profile.full_name,
-              role: profile.role,
             },
           }
         : {}),
@@ -78,9 +76,11 @@ export async function signUp(
 
   if (!error && data.session) {
     if (profile) {
+      // Only the name is updated here — roles are managed exclusively by
+      // administrators (enforced by the protect_role_change database trigger).
       await supabase
         .from('profiles')
-        .update({ full_name: profile.full_name, role: profile.role })
+        .update({ full_name: profile.full_name })
         .eq('id', data.session.user.id);
     }
     setAuth(data.session);

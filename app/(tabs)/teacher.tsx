@@ -16,7 +16,14 @@ import AppButton from '@/components/AppButton';
 import PickerField from '@/components/PickerField';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/lib/auth';
-import { createEvent } from '@/lib/events';
+import {
+  createEvent,
+  getAllEvents,
+  getEventsByTeacher,
+  setEventStatus,
+  updateEvent,
+  type CloudEvent,
+} from '@/lib/events';
 import { getProfile, type ProfileRole } from '@/lib/profiles';
 import { buildQRPayload } from '@/lib/qr';
 
@@ -87,6 +94,8 @@ export default function TeacherScreen() {
   const [role, setRole] = useState<ProfileRole | null>(null);
   const [title, setTitle] = useState('');
   const [eventId, setEventId] = useState('');
+  const [venue, setVenue] = useState('');
+  const [description, setDescription] = useState('');
   const [startDate, setStartDate] = useState(() => new Date());
   const [endDate, setEndDate] = useState(
     () => new Date(Date.now() + 60 * 60 * 1000)
@@ -96,12 +105,32 @@ export default function TeacherScreen() {
   const [pickerDraft, setPickerDraft] = useState(() => new Date());
   const [payload, setPayload] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [events, setEvents] = useState<CloudEvent[]>([]);
+
+  const loadEvents = useCallback(
+    async (currentRole: ProfileRole) => {
+      if (!user) return;
+      const list =
+        currentRole === 'admin'
+          ? await getAllEvents()
+          : await getEventsByTeacher(user.id);
+      setEvents(list);
+    },
+    [user]
+  );
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    if (user) getProfile(user.id).then((profile) => active && setRole(profile?.role ?? 'student'));
+    if (user)
+      getProfile(user.id).then((profile) => {
+        if (!active) return;
+        const nextRole = profile?.role ?? 'student';
+        setRole(nextRole);
+        void loadEvents(nextRole);
+      });
     return () => { active = false; };
-  }, [user]));
+  }, [user, loadEvents]));
 
   const openPicker = (target: 'start' | 'end', part: 'date' | 'time') => {
     setPickerDraft(new Date(target === 'start' ? startDate : endDate));
@@ -137,16 +166,18 @@ export default function TeacherScreen() {
     setEditTarget(null);
   };
 
-  const handleCreateEvent = async () => {
+  const handleSaveEvent = async () => {
     const event = {
       eventId: eventId.trim(),
       title: title.trim(),
       start: toLocalISO(startDate),
       end: toLocalISO(endDate),
+      venue: venue.trim(),
+      description: description.trim(),
     };
 
     if (!event.eventId || !event.title) {
-      setMessage('All fields are required.');
+      setMessage('Event name and code are required.');
       return;
     }
 
@@ -155,16 +186,70 @@ export default function TeacherScreen() {
       return;
     }
 
-    const { error } = await createEvent(event);
-    if (error) {
-      setMessage(error.message);
+    const result = editingId
+      ? await updateEvent(editingId, event)
+      : await createEvent(event);
+
+    if (result.error) {
+      setMessage(result.error.message);
       setPayload(null);
       return;
     }
-    setMessage('Event saved! Students can now scan this QR code.');
+    setMessage(
+      editingId
+        ? 'Event updated! The QR code below reflects the latest details.'
+        : 'Event saved! Students can now scan this QR code.'
+    );
     setPayload(buildQRPayload(event));
+    resetForm();
+    if (role) void loadEvents(role);
+  };
+
+  const resetForm = () => {
     setTitle('');
     setEventId('');
+    setVenue('');
+    setDescription('');
+    setEditingId(null);
+  };
+
+  const startEditEvent = (event: CloudEvent) => {
+    setEditingId(event.id);
+    setTitle(event.title);
+    setEventId(event.event_code);
+    setVenue(event.venue ?? '');
+    setDescription(event.description ?? '');
+    if (event.start_time) setStartDate(new Date(event.start_time));
+    if (event.end_time) setEndDate(new Date(event.end_time));
+    setPayload(null);
+    setMessage(`Editing "${event.title}".`);
+  };
+
+  const handleToggleStatus = async (event: CloudEvent) => {
+    const next = event.status === 'open' ? 'closed' : 'open';
+    const { error } = await setEventStatus(event.id, next);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setMessage(
+      next === 'closed'
+        ? `"${event.title}" is now closed. Attendance is blocked.`
+        : `"${event.title}" is open again.`
+    );
+    if (role) void loadEvents(role);
+  };
+
+  const generateQR = (event: CloudEvent) => {
+    setPayload(
+      buildQRPayload({
+        eventId: event.event_code,
+        title: event.title,
+        start: event.start_time ?? '',
+        end: event.end_time ?? '',
+      })
+    );
+    setMessage(`QR code ready for "${event.title}".`);
   };
 
   const setEndOffset = (minutes: number) => {
@@ -180,13 +265,14 @@ export default function TeacherScreen() {
     );
   }
 
-  if (role !== 'teacher') {
+  if (role !== 'teacher' && role !== 'admin') {
     return (
       <View style={styles.gate}>
         <Text style={styles.title}>Teachers Only</Text>
         <Text style={styles.subtitle}>
-          Your account is currently set to {role === 'student' ? 'Student' : role}.
-          Event creation requires a Teacher account. You can change it on the Profile tab.
+          Your account is currently set to Student. Event management requires a
+          Teacher or Administrator account — ask an administrator to upgrade
+          your account.
         </Text>
         <AppButton
           theme="primary"
@@ -204,7 +290,7 @@ export default function TeacherScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>Create Event QR</Text>
+      <Text style={styles.title}>{editingId ? 'Edit Event' : 'Create Event QR'}</Text>
       <Text style={styles.subtitle}>
         Fill in the event details, then scan the generated QR with the Scan tab.
       </Text>
@@ -226,6 +312,27 @@ export default function TeacherScreen() {
         placeholder="e.g. EVT-2026-0002"
         placeholderTextColor={COLORS.textSecondary}
         autoCapitalize="characters"
+      />
+
+      <Text style={styles.label}>Venue</Text>
+      <TextInput
+        style={styles.input}
+        value={venue}
+        onChangeText={setVenue}
+        placeholder="e.g. School Gymnasium"
+        placeholderTextColor={COLORS.textSecondary}
+      />
+
+      <Text style={styles.label}>Description</Text>
+      <TextInput
+        style={[styles.input, styles.descriptionInput]}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="What is this event about?"
+        placeholderTextColor={COLORS.textSecondary}
+        multiline
+        numberOfLines={3}
+        textAlignVertical="top"
       />
 
       <Text style={styles.label}>Start</Text>
@@ -329,10 +436,20 @@ export default function TeacherScreen() {
 
       <AppButton
         theme="primary"
-        title="Create Event"
-        icon="add-circle"
-        onPress={handleCreateEvent}
+        title={editingId ? 'Save Changes' : 'Create Event'}
+        icon={editingId ? 'save' : 'add-circle'}
+        onPress={handleSaveEvent}
       />
+      {editingId && (
+        <AppButton
+          title="Cancel Editing"
+          icon="close"
+          onPress={() => {
+            resetForm();
+            setMessage(null);
+          }}
+        />
+      )}
 
       {payload && (
         <View style={styles.resultCard}>
@@ -345,6 +462,81 @@ export default function TeacherScreen() {
           <Text style={styles.payloadText}>{payload}</Text>
         </View>
       )}
+
+      <Text style={[styles.title, styles.listTitle]}>Manage Events</Text>
+      <Text style={styles.subtitle}>
+        {events.length === 0
+          ? 'No events yet — create your first event above.'
+          : 'Edit details, generate QR codes, or close an event to stop attendance.'}
+      </Text>
+
+      {events.map((event) => (
+        <View key={event.id} style={styles.eventCard}>
+          <View style={styles.eventHeader}>
+            <Text style={styles.eventTitle}>{event.title}</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                event.status === 'closed' && styles.statusBadgeClosed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  event.status === 'closed' && styles.statusBadgeTextClosed,
+                ]}
+              >
+                {event.status === 'closed' ? 'CLOSED' : 'OPEN'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.eventMeta}>Code: {event.event_code}</Text>
+          {!!event.venue && <Text style={styles.eventMeta}>Venue: {event.venue}</Text>}
+          {!!event.description && (
+            <Text style={styles.eventMeta}>Description: {event.description}</Text>
+          )}
+          <Text style={styles.eventMeta}>
+            {event.start_time ? formatDate(new Date(event.start_time)) : '—'}{' '}
+            {event.start_time ? formatTime(new Date(event.start_time)) : ''} →{' '}
+            {event.end_time ? formatDate(new Date(event.end_time)) : '—'}{' '}
+            {event.end_time ? formatTime(new Date(event.end_time)) : ''}
+          </Text>
+          <View style={styles.eventActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => startEditEvent(event)}
+              style={({ pressed }) => [styles.eventButton, pressed && styles.modalButtonPressed]}
+            >
+              <Text style={styles.eventButtonText}>Edit</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => generateQR(event)}
+              style={({ pressed }) => [styles.eventButton, pressed && styles.modalButtonPressed]}
+            >
+              <Text style={styles.eventButtonText}>QR Code</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => handleToggleStatus(event)}
+              style={({ pressed }) => [
+                styles.eventButton,
+                event.status === 'open' && styles.eventButtonDanger,
+                pressed && styles.modalButtonPressed,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.eventButtonText,
+                  event.status === 'open' && styles.eventButtonTextDanger,
+                ]}
+              >
+                {event.status === 'open' ? 'Close' : 'Reopen'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ))}
     </ScrollView>
   );
 }
@@ -380,8 +572,8 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     alignSelf: 'center',
     paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 120,
+    paddingTop: 32,
+    paddingBottom: 104,
   },
   title: {
     fontSize: 20,
@@ -404,7 +596,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: COLORS.elevated,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 14,
@@ -416,12 +608,12 @@ const styles = StyleSheet.create({
   dateTimeColumn: { flexGrow: 1, flexBasis: 240, minWidth: 0 },
   pickerLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
   modalScrim: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 20 },
-  pickerSheet: { width: '100%', maxWidth: 430, backgroundColor: COLORS.elevated, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
+  pickerSheet: { width: '100%', maxWidth: 430, backgroundColor: COLORS.elevated, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
   pickerSheetTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700', textTransform: 'capitalize' },
   pickerSheetValue: { color: COLORS.textSecondary, fontSize: 14, marginTop: 4, marginBottom: 12 },
   iosPicker: { width: '100%' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
-  modalButton: { minWidth: 96, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  modalButton: { minWidth: 96, minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   modalButtonPrimary: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   modalButtonPressed: { opacity: 0.7 },
   modalButtonText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '700' },
@@ -441,7 +633,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: COLORS.surface,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
     minHeight: 44,
     paddingVertical: 10,
@@ -460,7 +652,7 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 16,
     marginTop: 20,
     alignItems: 'center',
@@ -485,5 +677,85 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  descriptionInput: {
+    minHeight: 84,
+    paddingTop: 12,
+  },
+  listTitle: {
+    marginTop: 30,
+    marginBottom: 0,
+  },
+  eventCard: {
+    backgroundColor: COLORS.elevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 14,
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 6,
+  },
+  eventTitle: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+  statusBadge: {
+    backgroundColor: COLORS.primarySoft,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusBadgeClosed: {
+    backgroundColor: COLORS.surface,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.success,
+    letterSpacing: 0.5,
+  },
+  statusBadgeTextClosed: {
+    color: COLORS.danger,
+  },
+  eventMeta: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  eventButton: {
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  eventButtonDanger: {
+    borderColor: COLORS.danger,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+  },
+  eventButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  eventButtonTextDanger: {
+    color: COLORS.danger,
   },
 });

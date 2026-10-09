@@ -2,11 +2,14 @@ import { getEventByCode } from './events';
 import { parseQRPayload } from './qr';
 import { supabase } from './supabase';
 
+export type AttendanceStatus = 'present' | 'late' | 'absent';
+
 export type AttendanceRecord = {
   id: string;
   eventId: string;
   eventTitle: string;
   scannedAt: string;
+  status: AttendanceStatus;
 };
 
 export type RegisterResult = {
@@ -25,6 +28,7 @@ export type TeacherEventAttendance = {
     studentId: string;
     studentName: string | null;
     scannedAt: string;
+    status: AttendanceStatus;
   }>;
 };
 
@@ -33,6 +37,18 @@ export type TeacherEventSummary = {
   eventCode: string;
   title: string;
   attendeeCount: number;
+};
+
+export type SystemAttendanceRecord = {
+  id: string;
+  studentId: string;
+  studentName: string | null;
+  studentEmail: string | null;
+  eventId: string;
+  eventTitle: string;
+  eventCode: string;
+  scannedAt: string;
+  status: AttendanceStatus;
 };
 
 export async function registerAttendance(rawPayload: string): Promise<RegisterResult> {
@@ -61,20 +77,36 @@ export async function registerAttendance(rawPayload: string): Promise<RegisterRe
 
   let event = await getEventByCode(payload.event);
   if (!event) return { success: false, message: 'Event not found. Ask the teacher to create a new QR code.' };
+  if (event.status === 'closed') {
+    return { success: false, message: 'This event is closed. Attendance is no longer accepted.' };
+  }
+
+  // Arrivals more than 15 minutes after the start time are marked late.
+  const status: AttendanceStatus = now > startTime + 15 * 60 * 1000 ? 'late' : 'present';
 
   const { error } = await supabase.from('attendance').insert({
     student_id: authData.user.id,
     event_id: event.id,
+    status,
   });
 
   if (error?.code === '23505') {
     return { success: false, message: 'Already registered for this event.' };
   }
+  if (error?.code === '42501' || error?.message?.toLowerCase().includes('row-level security')) {
+    return {
+      success: false,
+      message: 'Attendance blocked: this event is closed or your account cannot record attendance.',
+    };
+  }
   if (error) return { success: false, message: 'Could not record attendance.' };
 
   return {
     success: true,
-    message: 'Attendance recorded!',
+    message:
+      status === 'late'
+        ? 'Attendance recorded (late).'
+        : 'Attendance recorded!',
     eventTitle: event.title,
   };
 }
@@ -82,7 +114,7 @@ export async function registerAttendance(rawPayload: string): Promise<RegisterRe
 export async function getAttendanceHistory(studentId: string): Promise<AttendanceRecord[]> {
   const { data, error } = await supabase
     .from('attendance')
-    .select('id, scanned_at, event_id, events ( title )')
+    .select('id, scanned_at, status, event_id, events ( title )')
     .eq('student_id', studentId)
     .order('scanned_at', { ascending: false });
   if (error) return [];
@@ -92,6 +124,7 @@ export async function getAttendanceHistory(studentId: string): Promise<Attendanc
     eventId: row.event_id,
     eventTitle: Array.isArray(row.events) ? row.events[0]?.title : row.events?.title,
     scannedAt: row.scanned_at,
+    status: (row.status ?? 'present') as AttendanceStatus,
   }));
 }
 
@@ -108,7 +141,7 @@ export async function getTeacherEventAttendance(
   const eventIds = events.map((event) => event.id);
   const { data: attendance, error: attendanceError } = await supabase
     .from('attendance')
-    .select('student_id, scanned_at, event_id')
+    .select('student_id, scanned_at, status, event_id')
     .in('event_id', eventIds)
     .order('scanned_at', { ascending: false });
   if (attendanceError) return [];
@@ -131,6 +164,7 @@ export async function getTeacherEventAttendance(
         studentId: row.student_id,
         studentName: names.get(row.student_id) ?? null,
         scannedAt: row.scanned_at,
+        status: (row.status ?? 'present') as AttendanceStatus,
       })),
   }));
 }
@@ -163,4 +197,66 @@ export async function getTeacherEventSummary(
     title: event.title,
     attendeeCount: counts[event.id] ?? 0,
   }));
+}
+
+// ------------------------------------------------------------
+// Administrator: view every attendance record in the system
+// ------------------------------------------------------------
+
+export async function getAllAttendance(): Promise<SystemAttendanceRecord[]> {
+  const { data: attendance, error } = await supabase
+    .from('attendance')
+    .select('id, student_id, event_id, scanned_at, status, events ( id, title, event_code )')
+    .order('scanned_at', { ascending: false });
+  if (error || !attendance?.length) return [];
+
+  const studentIds = [...new Set(attendance.map((row: any) => row.student_id as string))];
+  const { data: profiles } = studentIds.length
+    ? await supabase.from('profiles').select('id, full_name, email').in('id', studentIds)
+    : { data: [] as Array<{ id: string; full_name: string | null; email: string | null }> };
+  const info = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  return (attendance as any[]).map((row) => {
+    const event = Array.isArray(row.events) ? row.events[0] : row.events;
+    const profile = info.get(row.student_id);
+    return {
+      id: row.id,
+      studentId: row.student_id,
+      studentName: profile?.full_name ?? null,
+      studentEmail: profile?.email ?? null,
+      eventId: row.event_id,
+      eventTitle: event?.title ?? 'Unknown event',
+      eventCode: event?.event_code ?? '',
+      scannedAt: row.scanned_at,
+      status: (row.status ?? 'present') as AttendanceStatus,
+    };
+  });
+}
+
+// Administrator: correct or remove a record (data validation / correction)
+export async function updateAttendanceStatus(id: string, status: AttendanceStatus) {
+  return supabase.from('attendance').update({ status }).eq('id', id);
+}
+
+export async function deleteAttendance(id: string) {
+  return supabase.from('attendance').delete().eq('id', id);
+}
+
+// ------------------------------------------------------------
+// Realtime: subscribe to attendance changes (live updates)
+// Returns an unsubscribe function.
+// ------------------------------------------------------------
+
+export function subscribeToAttendance(onChange: () => void): () => void {
+  const channel = supabase
+    .channel('attendance-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'attendance' },
+      () => onChange()
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
 }

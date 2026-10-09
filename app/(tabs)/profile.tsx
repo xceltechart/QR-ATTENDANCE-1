@@ -14,7 +14,7 @@ import {
 
 import { COLORS } from '@/constants/colors';
 import { signOut, useAuth } from '@/lib/auth';
-import { getProfile, Profile, ProfileRole, updateProfile } from '@/lib/profiles';
+import { getProfile, Profile, updateProfile } from '@/lib/profiles';
 
 type ProfileActionProps = {
   icon: keyof typeof MaterialIcons.glyphMap;
@@ -56,7 +56,6 @@ export default function ProfileScreen() {
   const isDesktop = width >= 800;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [fullName, setFullName] = useState('');
-  const [selectedRole, setSelectedRole] = useState<ProfileRole>('student');
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,7 +67,6 @@ export default function ProfileScreen() {
     const nextProfile = await getProfile(session.user.id);
     setProfile(nextProfile);
     setFullName(nextProfile?.full_name ?? '');
-    if (nextProfile) setSelectedRole(nextProfile.role);
     setMessage(nextProfile ? '' : 'Unable to load your profile.');
     setLoading(false);
   }, [session?.user.id]);
@@ -85,7 +83,6 @@ export default function ProfileScreen() {
     setMessage('');
     const { error } = await updateProfile(session.user.id, {
       full_name: fullName.trim() || null,
-      role: selectedRole,
     });
     setSaving(false);
     if (error) {
@@ -110,7 +107,14 @@ export default function ProfileScreen() {
   const displayName = profile?.full_name || 'No name set';
   const email = session?.user.email ?? 'No email available';
   const initial = (profile?.full_name || email).trim().charAt(0).toUpperCase() || '?';
-  const roleLabel = profile?.role === 'teacher' ? 'Teacher' : profile?.role === 'student' ? 'Student' : 'Unavailable';
+  const roleLabel =
+    profile?.role === 'teacher'
+      ? 'Teacher'
+      : profile?.role === 'admin'
+        ? 'Administrator'
+        : profile?.role === 'student'
+          ? 'Student'
+          : 'Unavailable';
 
   return (
     <ScrollView
@@ -155,33 +159,18 @@ export default function ProfileScreen() {
                   value={fullName}
                 />
                 <Text style={styles.roleFieldLabel}>Account type</Text>
-                <View accessibilityRole="radiogroup" style={styles.roleOptions}>
-                  {(['student', 'teacher'] as const).map((option) => {
-                    const active = selectedRole === option;
-                    return (
-                      <Pressable
-                        accessibilityLabel={`${option === 'student' ? 'Student' : 'Teacher'} account`}
-                        accessibilityRole="radio"
-                        accessibilityState={{ checked: active }}
-                        key={option}
-                        onPress={() => setSelectedRole(option)}
-                        style={({ pressed }) => [
-                          styles.roleOption,
-                          active && styles.roleOptionActive,
-                          pressed && styles.profileActionPressed,
-                        ]}
-                      >
-                        <MaterialIcons
-                          color={active ? COLORS.primary : COLORS.textSecondary}
-                          name={option === 'student' ? 'school' : 'badge'}
-                          size={20}
-                        />
-                        <Text style={[styles.roleOptionText, active && styles.roleOptionTextActive]}>
-                          {option === 'student' ? 'Student' : 'Teacher'}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                <View style={styles.detailRow}>
+                  <View style={styles.detailIcon}>
+                    <MaterialIcons
+                      color={COLORS.primary}
+                      name={profile?.role === 'admin' ? 'admin-panel-settings' : profile?.role === 'teacher' ? 'badge' : 'school'}
+                      size={20}
+                    />
+                  </View>
+                  <View style={styles.detailCopy}>
+                    <Text style={styles.detailLabel}>Role (managed by administrators)</Text>
+                    <Text style={styles.detailValue}>{roleLabel}</Text>
+                  </View>
                 </View>
               </View>
             ) : (
@@ -226,7 +215,6 @@ export default function ProfileScreen() {
                   muted
                   onPress={() => {
                     setFullName(profile?.full_name ?? '');
-                    setSelectedRole(profile?.role ?? 'student');
                     setEditing(false);
                     setMessage('');
                   }}
@@ -243,41 +231,36 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 48, paddingBottom: 120 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 104 },
   content: { width: '100%', maxWidth: 960, alignSelf: 'center' },
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: COLORS.background },
   loadingText: { color: COLORS.textSecondary, fontSize: 15 },
-  eyebrow: { color: COLORS.primary, fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  title: { color: COLORS.textPrimary, fontSize: 34, fontWeight: '800', marginTop: 12 },
-  subtitle: { color: COLORS.textSecondary, fontSize: 16, lineHeight: 24, marginTop: 6, marginBottom: 26 },
+  eyebrow: { color: COLORS.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
+  title: { color: COLORS.textPrimary, fontSize: 28, fontWeight: '700', marginTop: 8 },
+  subtitle: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 22, marginTop: 5, marginBottom: 22 },
   profileCard: {
     width: '100%',
     backgroundColor: COLORS.elevated,
     borderColor: COLORS.border,
     borderWidth: 1,
-    borderRadius: 24,
+    borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: COLORS.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 4,
   },
-  profileCardDesktop: { flexDirection: 'row', minHeight: 430 },
-  identityPanel: { backgroundColor: COLORS.primaryDark, alignItems: 'center', paddingHorizontal: 28, paddingVertical: 36 },
+  profileCardDesktop: { flexDirection: 'row', minHeight: 360 },
+  identityPanel: { backgroundColor: COLORS.primarySoft, alignItems: 'center', paddingHorizontal: 28, paddingVertical: 32 },
   identityPanelDesktop: { width: '38%', justifyContent: 'center' },
-  avatar: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primarySoft, marginBottom: 18 },
-  avatarText: { color: COLORS.primary, fontSize: 36, fontWeight: '800' },
-  roleBadge: { backgroundColor: COLORS.card, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginBottom: 18 },
-  roleText: { color: COLORS.primary, fontSize: 13, fontWeight: '800' },
-  identityName: { color: COLORS.textOnPrimary, fontSize: 24, lineHeight: 30, fontWeight: '800', textAlign: 'center' },
-  identityEmail: { color: COLORS.onPrimarySoft, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 7 },
-  detailsPanel: { flex: 1, padding: 32 },
-  sectionLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1.35 },
-  sectionTitle: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 8 },
+  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 14 },
+  avatarText: { color: COLORS.primary, fontSize: 30, fontWeight: '700' },
+  roleBadge: { backgroundColor: '#FFFFFF', borderRadius: 6, paddingHorizontal: 11, paddingVertical: 6, marginBottom: 14 },
+  roleText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+  identityName: { color: COLORS.textPrimary, fontSize: 21, lineHeight: 27, fontWeight: '700', textAlign: 'center' },
+  identityEmail: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 6 },
+  detailsPanel: { flex: 1, padding: 26 },
+  sectionLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.1 },
+  sectionTitle: { color: COLORS.textPrimary, fontSize: 21, fontWeight: '700', marginTop: 7 },
   sectionHint: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 5, marginBottom: 24 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginBottom: 12 },
-  detailIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 8, padding: 12, marginBottom: 10 },
+  detailIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   detailCopy: { flex: 1, minWidth: 0 },
   detailLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 3 },
   detailValue: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
@@ -285,7 +268,7 @@ const styles = StyleSheet.create({
   fieldGroup: { marginBottom: 14 },
   fieldLabel: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginBottom: 8 },
   roleFieldLabel: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginTop: 16, marginBottom: 8 },
-  input: { width: '100%', minHeight: 52, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, backgroundColor: COLORS.card, color: COLORS.textPrimary, paddingHorizontal: 16, fontSize: 16 },
+  input: { width: '100%', minHeight: 48, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.card, color: COLORS.textPrimary, paddingHorizontal: 14, fontSize: 16 },
   roleOptions: { width: '100%', flexDirection: 'row', gap: 10 },
   roleOption: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, backgroundColor: COLORS.card },
   roleOptionActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },

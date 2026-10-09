@@ -10,16 +10,18 @@ export default function TabLayout() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const desktop = Platform.OS === 'web' && width >= 768;
-  const navWidth = Math.min(width - 48, 760);
 
   // Start from the role chosen at sign-up (stored in the session user metadata)
   // so the Events tab is available immediately for teachers, then confirm it
   // against the profiles table and refresh it whenever the app regains focus.
-  const [role, setRole] = useState<ProfileRole | null>(
-    () => (user?.user_metadata?.role === 'teacher' ? 'teacher' : null)
-  );
+  const [role, setRole] = useState<ProfileRole | null>(() => {
+    const metadataRole = user?.user_metadata?.role;
+    return metadataRole === 'teacher' || metadataRole === 'admin'
+      ? metadataRole
+      : null;
+  });
 
-  // The Events tab is only registered (and visible) for teacher accounts.
+  // The Events tab is only registered (and visible) for teacher/admin accounts.
   // Students get a 404 if they try to navigate to /teacher directly.
   useFocusEffect(
     useCallback(() => {
@@ -29,8 +31,11 @@ export default function TabLayout() {
         if (!active) return;
         if (profile) {
           setRole(profile.role);
-        } else if (user.user_metadata?.role === 'teacher') {
-          setRole('teacher');
+        } else if (
+          user.user_metadata?.role === 'teacher' ||
+          user.user_metadata?.role === 'admin'
+        ) {
+          setRole(user.user_metadata.role);
         } else {
           setRole('student');
         }
@@ -58,26 +63,21 @@ export default function TabLayout() {
           marginHorizontal: 4,
           marginVertical: 4,
           paddingVertical: 4,
-          borderRadius: 14,
+          borderRadius: 8,
         },
         tabBarHideOnKeyboard: true,
         tabBarStyle: desktop
           ? {
               position: 'absolute',
-              width: navWidth,
-              left: (width - navWidth) / 2,
-              bottom: 22,
-              height: 72,
-              borderRadius: 22,
+              width: '100%',
+              left: 0,
+              bottom: 0,
+              height: 68,
+              borderRadius: 0,
               backgroundColor: COLORS.elevated,
-              borderWidth: 1,
               borderTopWidth: 1,
               borderColor: COLORS.border,
-              paddingHorizontal: 12,
-              shadowColor: COLORS.shadow,
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.12,
-              shadowRadius: 24,
+              paddingHorizontal: 32,
             }
           : {
               height: width < 360 ? 64 : 68,
@@ -108,12 +108,23 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <MaterialIcons name="history" color={color} size={25} />,
         }}
       />
-      <Tabs.Protected guard={role === 'teacher'}>
+      <Tabs.Protected guard={role === 'teacher' || role === 'admin'}>
         <Tabs.Screen
           name="teacher"
           options={{
             title: 'Events',
             tabBarIcon: ({ color }) => <MaterialIcons name="event-note" color={color} size={25} />,
+          }}
+        />
+      </Tabs.Protected>
+      <Tabs.Protected guard={role === 'admin'}>
+        <Tabs.Screen
+          name="admin"
+          options={{
+            title: 'Admin',
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="admin-panel-settings" color={color} size={25} />
+            ),
           }}
         />
       </Tabs.Protected>

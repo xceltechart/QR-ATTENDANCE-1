@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type ProfileRole = 'student' | 'teacher';
+export type ProfileRole = 'student' | 'teacher' | 'admin';
 
 export type Profile = {
   id: string;
@@ -19,6 +19,24 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
   if (error) return null;
   return data as Profile | null;
+}
+
+export async function getAllProfiles(): Promise<Profile[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return (data ?? []) as Profile[];
+}
+
+export async function setUserRole(userId: string, role: ProfileRole) {
+  return supabase
+    .from('profiles')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select('id')
+    .single();
 }
 
 export async function updateProfile(

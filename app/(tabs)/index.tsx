@@ -1,6 +1,8 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,10 +13,27 @@ import {
 
 import AppButton from '@/components/AppButton';
 import { COLORS } from '@/constants/colors';
+import { getAvailableEvents, subscribeToEvents, type CloudEvent } from '@/lib/events';
 
 export default function Index() {
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
+  const [events, setEvents] = useState<CloudEvent[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  const loadEvents = useCallback(async () => {
+    const list = await getAvailableEvents();
+    setEvents(list);
+    setLoadingEvents(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadEvents();
+      // Realtime: students see new/closed events without refreshing.
+      return subscribeToEvents(() => void loadEvents());
+    }, [loadEvents])
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -27,39 +46,35 @@ export default function Index() {
       >
         <View style={[styles.layout, desktop && styles.desktopLayout]}>
           <View style={[styles.hero, desktop && styles.desktopHero]}>
-            <View pointerEvents="none" style={styles.glowViolet} />
-            <View pointerEvents="none" style={styles.glowCyan} />
             <View style={styles.brandRow}>
               <View style={styles.logoCircle}>
-                <MaterialIcons name="school" size={30} color={COLORS.primary} />
+                <MaterialIcons name="school" size={27} color={COLORS.primary} />
               </View>
               <View>
                 <Text style={styles.brandName}>QR Attendance</Text>
-                <Text style={styles.brandMeta}>CODENIERA SCHOOL SYSTEM</Text>
+                <Text style={styles.brandMeta}>SCHOOL CHECK-IN</Text>
               </View>
             </View>
 
-            <Text style={styles.eyebrow}>SMART EVENT CHECK-IN</Text>
             <Text style={[styles.heroTitle, desktop && styles.desktopHeroTitle]}>
-              Attendance that keeps everyone moving.
+              Attendance, made clear.
             </Text>
             <Text style={styles.heroText}>
-              Scan event QR codes, review your attendance, and keep your school
-              activity records in one secure place.
+              Find school events, check in with a QR code, and keep your
+              attendance record close at hand.
             </Text>
 
             <View style={styles.statusRow}>
               <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Cloud attendance is ready</Text>
+              <Text style={styles.statusText}>Your school attendance workspace</Text>
             </View>
-            <Text style={styles.credit}>Developed by Axcel Delos Reyes</Text>
           </View>
 
           <View style={[styles.actionCard, desktop && styles.desktopActionCard]}>
-            <Text style={styles.actionEyebrow}>QUICK ACTIONS</Text>
-            <Text style={styles.actionTitle}>What would you like to do?</Text>
+            <Text style={styles.actionEyebrow}>GET STARTED</Text>
+            <Text style={styles.actionTitle}>Your next step</Text>
             <Text style={styles.actionText}>
-              Choose an option below to continue.
+              Scan an event code or review your recent attendance.
             </Text>
 
             <AppButton
@@ -80,6 +95,69 @@ export default function Index() {
             />
           </View>
         </View>
+
+        <View style={styles.eventsSection}>
+          <Text style={styles.eventsEyebrow}>AVAILABLE EVENTS</Text>
+          <Text style={styles.eventsTitle}>Open for attendance</Text>
+          {loadingEvents ? (
+            <View style={styles.eventsState}>
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={styles.eventsStateText}>Loading events…</Text>
+            </View>
+          ) : events.length === 0 ? (
+            <View style={styles.eventsState}>
+              <MaterialIcons name="event-busy" size={30} color={COLORS.textSecondary} />
+              <Text style={styles.eventsStateText}>
+                No open events yet. Check back when your teacher announces one.
+              </Text>
+            </View>
+          ) : (
+            events.map((event) => (
+              <View key={event.id} style={styles.eventCard}>
+                <View style={styles.eventCardHeader}>
+                  <Text style={styles.eventCardTitle}>{event.title}</Text>
+                  <View style={styles.eventCodeBadge}>
+                    <Text style={styles.eventCodeText}>{event.event_code}</Text>
+                  </View>
+                </View>
+                {!!event.venue && (
+                  <View style={styles.eventMetaRow}>
+                    <MaterialIcons name="place" size={16} color={COLORS.textSecondary} />
+                    <Text style={styles.eventCardMeta}>{event.venue}</Text>
+                  </View>
+                )}
+                {!!event.description && (
+                  <Text style={styles.eventCardMeta}>{event.description}</Text>
+                )}
+                <View style={styles.eventMetaRow}>
+                  <MaterialIcons name="schedule" size={15} color={COLORS.textSecondary} />
+                  <Text style={styles.eventCardMeta}>
+                  {event.start_time
+                    ? new Date(event.start_time).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'TBA'}
+                  {event.end_time
+                    ? ` – ${new Date(event.end_time).toLocaleTimeString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`
+                    : ''}
+                  </Text>
+                </View>
+                <AppButton
+                  theme="primary"
+                  title="Scan Into This Event"
+                  icon="qr-code-scanner"
+                  onPress={() => router.push('/scan')}
+                />
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -89,69 +167,73 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 32,
+    paddingTop: 24,
     paddingBottom: 104,
   },
-  desktopScrollContent: { paddingHorizontal: 40, paddingTop: 56, paddingBottom: 128 },
-  layout: { width: '100%', maxWidth: 1040, alignSelf: 'center', gap: 24 },
-  desktopLayout: { flexDirection: 'row', alignItems: 'stretch', gap: 32 },
+  desktopScrollContent: { paddingHorizontal: 40, paddingTop: 40, paddingBottom: 104 },
+  layout: { width: '100%', maxWidth: 1040, alignSelf: 'center', gap: 20 },
+  desktopLayout: { flexDirection: 'row', alignItems: 'stretch', gap: 24 },
   hero: {
     backgroundColor: COLORS.primaryDark,
-    borderRadius: 22,
+    borderRadius: 14,
     padding: 24,
-    overflow: 'hidden',
   },
-  desktopHero: { flex: 1, minHeight: 450, padding: 40, justifyContent: 'center' },
-  glowViolet: {
-    position: 'absolute',
-    top: -80,
-    right: -50,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: 'rgba(139, 92, 246, 0.35)',
-  },
-  glowCyan: {
-    position: 'absolute',
-    bottom: -90,
-    left: -40,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(94, 234, 212, 0.14)',
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 36 },
+  desktopHero: { flex: 1, minHeight: 360, padding: 36, justifyContent: 'center' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 42 },
   logoCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: COLORS.card,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
-  brandName: { fontSize: 18, fontWeight: '700', color: COLORS.textOnPrimary },
-  brandMeta: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2, color: COLORS.onPrimaryMuted, marginTop: 3 },
-  eyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.5, color: COLORS.onPrimaryMuted, marginBottom: 12 },
+  brandName: { fontSize: 17, fontWeight: '700', color: COLORS.textOnPrimary },
+  brandMeta: { fontSize: 10, fontWeight: '700', letterSpacing: 1.1, color: COLORS.onPrimaryMuted, marginTop: 3 },
   heroTitle: { fontSize: 32, lineHeight: 39, fontWeight: '700', color: COLORS.textOnPrimary, maxWidth: 540 },
-  desktopHeroTitle: { fontSize: 44, lineHeight: 52 },
-  heroText: { fontSize: 16, lineHeight: 25, color: COLORS.onPrimarySoft, maxWidth: 570, marginTop: 16 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 32 },
+  desktopHeroTitle: { fontSize: 40, lineHeight: 47 },
+  heroText: { fontSize: 16, lineHeight: 24, color: COLORS.onPrimarySoft, maxWidth: 500, marginTop: 14 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 28 },
   statusDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: COLORS.successLight, marginRight: 9 },
   statusText: { fontSize: 13, fontWeight: '600', color: COLORS.onPrimarySoft },
-  credit: { fontSize: 12, color: COLORS.onPrimaryMuted, marginTop: 10 },
   actionCard: {
     width: '100%',
     backgroundColor: COLORS.elevated,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 22,
+    borderRadius: 14,
     padding: 24,
   },
-  desktopActionCard: { width: 400, justifyContent: 'center', padding: 32 },
-  actionEyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 1.4, color: COLORS.primary, marginBottom: 8 },
-  actionTitle: { fontSize: 25, lineHeight: 32, fontWeight: '700', color: COLORS.textPrimary },
-  actionText: { fontSize: 15, lineHeight: 22, color: COLORS.textSecondary, marginTop: 6, marginBottom: 24 },
+  desktopActionCard: { width: 360, justifyContent: 'center', padding: 28 },
+  actionEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.primary, marginBottom: 8 },
+  actionTitle: { fontSize: 23, lineHeight: 29, fontWeight: '700', color: COLORS.textPrimary },
+  actionText: { fontSize: 14, lineHeight: 21, color: COLORS.textSecondary, marginTop: 6, marginBottom: 20 },
+  eventsSection: {
+    width: '100%',
+    backgroundColor: COLORS.elevated,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    padding: 20,
+  },
+  eventsEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.primary },
+  eventsTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginTop: 5, marginBottom: 14 },
+  eventsState: { alignItems: 'center', gap: 10, paddingVertical: 24 },
+  eventsStateText: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
+  eventCard: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+  },
+  eventCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
+  eventCardTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
+  eventCodeBadge: { backgroundColor: COLORS.primarySoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  eventCodeText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  eventCardMeta: { fontSize: 13, color: COLORS.textSecondary, marginTop: 6, lineHeight: 18 },
+  eventMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
 });

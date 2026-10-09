@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   camera: StyleSheet.absoluteFillObject,
   title: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  overlay: { position: 'absolute', left: 20, right: 20, bottom: 60, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 16, alignItems: 'center' },
+  overlay: { position: 'absolute', left: 20, right: 20, bottom: 60, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 16, alignItems: 'center', maxWidth: 520, alignSelf: 'center' },
   overlayText: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 6, textAlign: 'center' },
   result: { fontSize: 14, textAlign: 'center', marginBottom: 8, fontWeight: '600' },
   data: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 12 },
