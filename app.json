@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "QR-ATT",
-    "slug": "QR-ATT",
+    "slug": "QR_ATTENDANCE",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -48,9 +48,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "48a4f553-94d6-45d7-857e-789bd76eb20a"
+        "projectId": "85644bc2-23e7-45aa-b9cb-f7be902b1d79"
       }
     },
-    "owner": "axceldreyess-team"
+    "owner": "axceldreyes"
   }
 }
