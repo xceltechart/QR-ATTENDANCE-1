@@ -63,7 +63,7 @@ export default function TabLayout() {
           marginHorizontal: 4,
           marginVertical: 4,
           paddingVertical: 4,
-          borderRadius: 8,
+          borderRadius: 4,
         },
         tabBarHideOnKeyboard: true,
         tabBarStyle: desktop

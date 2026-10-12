@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
+import ScreenWatermark from '@/components/ScreenWatermark';
 import { useAuth } from '@/lib/auth';
 import {
   deleteAttendance,
@@ -101,6 +102,7 @@ export default function AdminScreen() {
   if (loading) {
     return (
       <View style={styles.gate}>
+        <ScreenWatermark />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Loading system records…</Text>
       </View>
@@ -117,7 +119,9 @@ export default function AdminScreen() {
   const closedEventCount = events.filter((event) => event.status === 'closed').length;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <ScreenWatermark />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
       <Text style={styles.eyebrow}>ADMINISTRATION</Text>
       <Text style={styles.title}>System overview</Text>
       <Text style={styles.subtitle}>
@@ -271,11 +275,13 @@ export default function AdminScreen() {
           </View>
         ))
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  scrollView: { flex: 1, backgroundColor: 'transparent' },
   content: {
     width: '100%',
     maxWidth: 920,
@@ -306,10 +312,10 @@ const styles = StyleSheet.create({
   statCard: {
     flexGrow: 1,
     flexBasis: 130,
-    backgroundColor: COLORS.elevated,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: 6,
     padding: 16,
     alignItems: 'flex-start',
   },
@@ -336,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.elevated,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: 6,
     padding: 16,
     marginBottom: 12,
   },
@@ -347,7 +353,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.card,

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
+import ScreenWatermark from '@/components/ScreenWatermark';
 import { signOut, useAuth } from '@/lib/auth';
 import { getProfile, Profile, updateProfile } from '@/lib/profiles';
 
@@ -98,6 +99,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.loadingState}>
+        <ScreenWatermark />
         <ActivityIndicator color={COLORS.primary} size="large" />
         <Text style={styles.loadingText}>Loading your profile…</Text>
       </View>
@@ -117,11 +119,13 @@ export default function ProfileScreen() {
           : 'Unavailable';
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={styles.container}>
+      <ScreenWatermark />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.content}>
         <Text style={styles.eyebrow}>ACCOUNT</Text>
         <Text style={styles.title}>My profile</Text>
@@ -225,12 +229,14 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  scrollView: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 32, paddingBottom: 104 },
   content: { width: '100%', maxWidth: 960, alignSelf: 'center' },
   loadingState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: COLORS.background },
@@ -243,15 +249,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.elevated,
     borderColor: COLORS.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   profileCardDesktop: { flexDirection: 'row', minHeight: 360 },
   identityPanel: { backgroundColor: COLORS.primarySoft, alignItems: 'center', paddingHorizontal: 28, paddingVertical: 32 },
   identityPanelDesktop: { width: '38%', justifyContent: 'center' },
-  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 14 },
+  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.elevated, marginBottom: 14 },
   avatarText: { color: COLORS.primary, fontSize: 30, fontWeight: '700' },
-  roleBadge: { backgroundColor: '#FFFFFF', borderRadius: 6, paddingHorizontal: 11, paddingVertical: 6, marginBottom: 14 },
+  roleBadge: { backgroundColor: COLORS.elevated, borderRadius: 3, paddingHorizontal: 11, paddingVertical: 6, marginBottom: 14 },
   roleText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
   identityName: { color: COLORS.textPrimary, fontSize: 21, lineHeight: 27, fontWeight: '700', textAlign: 'center' },
   identityEmail: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 6 },
@@ -259,8 +265,8 @@ const styles = StyleSheet.create({
   sectionLabel: { color: COLORS.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.1 },
   sectionTitle: { color: COLORS.textPrimary, fontSize: 21, fontWeight: '700', marginTop: 7 },
   sectionHint: { color: COLORS.textSecondary, fontSize: 14, lineHeight: 21, marginTop: 5, marginBottom: 24 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 8, padding: 12, marginBottom: 10 },
-  detailIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 4, padding: 12, marginBottom: 10 },
+  detailIcon: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.elevated, alignItems: 'center', justifyContent: 'center' },
   detailCopy: { flex: 1, minWidth: 0 },
   detailLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 3 },
   detailValue: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
@@ -268,9 +274,9 @@ const styles = StyleSheet.create({
   fieldGroup: { marginBottom: 14 },
   fieldLabel: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginBottom: 8 },
   roleFieldLabel: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '700', marginTop: 16, marginBottom: 8 },
-  input: { width: '100%', minHeight: 48, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.card, color: COLORS.textPrimary, paddingHorizontal: 14, fontSize: 16 },
+  input: { width: '100%', minHeight: 48, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, backgroundColor: COLORS.card, color: COLORS.textPrimary, paddingHorizontal: 14, fontSize: 16 },
   roleOptions: { width: '100%', flexDirection: 'row', gap: 10 },
-  roleOption: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, backgroundColor: COLORS.card },
+  roleOption: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, backgroundColor: COLORS.card },
   roleOptionActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primarySoft },
   roleOptionText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '700' },
   roleOptionTextActive: { color: COLORS.primary },

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import AppButton from '@/components/AppButton';
+import ScreenWatermark from '@/components/ScreenWatermark';
 import { COLORS } from '@/constants/colors';
 import { getAvailableEvents, subscribeToEvents, type CloudEvent } from '@/lib/events';
 
@@ -37,7 +38,9 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ScreenWatermark />
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           desktop && styles.desktopScrollContent,
@@ -165,6 +168,7 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.background },
+  scrollView: { backgroundColor: 'transparent' },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
@@ -176,7 +180,7 @@ const styles = StyleSheet.create({
   desktopLayout: { flexDirection: 'row', alignItems: 'stretch', gap: 24 },
   hero: {
     backgroundColor: COLORS.primaryDark,
-    borderRadius: 14,
+    borderRadius: 6,
     padding: 24,
   },
   desktopHero: { flex: 1, minHeight: 360, padding: 36, justifyContent: 'center' },
@@ -184,8 +188,8 @@ const styles = StyleSheet.create({
   logoCircle: {
     width: 48,
     height: 48,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    backgroundColor: COLORS.elevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -200,10 +204,10 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 13, fontWeight: '600', color: COLORS.onPrimarySoft },
   actionCard: {
     width: '100%',
-    backgroundColor: COLORS.elevated,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 14,
+    borderRadius: 6,
     padding: 24,
   },
   desktopActionCard: { width: 360, justifyContent: 'center', padding: 28 },
@@ -212,10 +216,10 @@ const styles = StyleSheet.create({
   actionText: { fontSize: 14, lineHeight: 21, color: COLORS.textSecondary, marginTop: 6, marginBottom: 20 },
   eventsSection: {
     width: '100%',
-    backgroundColor: COLORS.elevated,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 14,
+    borderRadius: 6,
     padding: 20,
   },
   eventsEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.primary },
@@ -226,14 +230,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: 4,
     padding: 16,
     marginBottom: 12,
   },
   eventCardHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 },
   eventCardTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: COLORS.textPrimary },
-  eventCodeBadge: { backgroundColor: COLORS.primarySoft, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  eventCodeText: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  eventCodeBadge: { backgroundColor: COLORS.accent, borderRadius: 3, paddingHorizontal: 8, paddingVertical: 4 },
+  eventCodeText: { fontSize: 11, fontWeight: '700', color: COLORS.textPrimary },
   eventCardMeta: { fontSize: 13, color: COLORS.textSecondary, marginTop: 6, lineHeight: 18 },
   eventMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
 });

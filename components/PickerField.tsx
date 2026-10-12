@@ -35,11 +35,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 15,
   },
   icon: { paddingRight: 10 },
   value: {

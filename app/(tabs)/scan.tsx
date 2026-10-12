@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import AppButton from '@/components/AppButton';
+import ScreenWatermark from '@/components/ScreenWatermark';
 import { COLORS } from '@/constants/colors';
 import { registerAttendance } from '@/lib/attendance';
 import { useAuth } from '@/lib/auth';
@@ -27,7 +28,7 @@ export default function ScanScreen() {
   if (!role) return <CenteredMessage title="Checking your account..." />;
   if (role !== 'student') return <CenteredMessage title="Students Only" subtitle="QR attendance scanning is available to student accounts." />;
   if (!permission) return <View style={styles.container} />;
-  if (!permission.granted) return <View style={styles.container}><Text style={styles.title}>Camera Permission Needed</Text><Text style={styles.subtitle}>We need access to your camera to scan QR codes.</Text><AppButton theme="primary" title="Grant Permission" icon="camera-alt" onPress={requestPermission} /></View>;
+  if (!permission.granted) return <View style={styles.container}><ScreenWatermark /><Text style={styles.title}>Camera Permission Needed</Text><Text style={styles.subtitle}>We need access to your camera to scan QR codes.</Text><AppButton theme="primary" title="Grant Permission" icon="camera-alt" onPress={requestPermission} /></View>;
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
@@ -41,7 +42,7 @@ export default function ScanScreen() {
 }
 
 function CenteredMessage({ title, subtitle }: { title: string; subtitle?: string }) {
-  return <View style={styles.container}><Text style={styles.title}>{title}</Text>{subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}</View>;
+  return <View style={styles.container}><ScreenWatermark /><Text style={styles.title}>{title}</Text>{subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -49,7 +50,7 @@ const styles = StyleSheet.create({
   camera: StyleSheet.absoluteFillObject,
   title: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  overlay: { position: 'absolute', left: 20, right: 20, bottom: 60, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 16, alignItems: 'center', maxWidth: 520, alignSelf: 'center' },
+  overlay: { position: 'absolute', left: 20, right: 20, bottom: 60, backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 16, alignItems: 'center', maxWidth: 520, alignSelf: 'center' },
   overlayText: { fontSize: 16, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 6, textAlign: 'center' },
   result: { fontSize: 14, textAlign: 'center', marginBottom: 8, fontWeight: '600' },
   data: { fontSize: 12, color: COLORS.textSecondary, textAlign: 'center', marginBottom: 12 },

@@ -14,6 +14,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import AppButton from '@/components/AppButton';
 import PickerField from '@/components/PickerField';
+import ScreenWatermark from '@/components/ScreenWatermark';
 import { COLORS } from '@/constants/colors';
 import { useAuth } from '@/lib/auth';
 import {
@@ -259,6 +260,7 @@ export default function TeacherScreen() {
   if (!role) {
     return (
       <View style={styles.gate}>
+        <ScreenWatermark />
         <Text style={styles.title}>Checking your account...</Text>
         <Text style={styles.subtitle}>If this message does not clear, try reopening the app or check your connection.</Text>
       </View>
@@ -268,6 +270,7 @@ export default function TeacherScreen() {
   if (role !== 'teacher' && role !== 'admin') {
     return (
       <View style={styles.gate}>
+        <ScreenWatermark />
         <Text style={styles.title}>Teachers Only</Text>
         <Text style={styles.subtitle}>
           Your account is currently set to Student. Event management requires a
@@ -285,11 +288,13 @@ export default function TeacherScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={styles.container}>
+      <ScreenWatermark />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
       <Text style={styles.title}>{editingId ? 'Edit Event' : 'Create Event QR'}</Text>
       <Text style={styles.subtitle}>
         Fill in the event details, then scan the generated QR with the Scan tab.
@@ -390,7 +395,7 @@ export default function TeacherScreen() {
                 minHeight: 48,
                 boxSizing: 'border-box',
                 border: `1px solid ${COLORS.border}`,
-                borderRadius: 10,
+                borderRadius: 4,
                 backgroundColor: COLORS.card,
                 color: '#000000',
                 fontFamily: 'inherit',
@@ -537,7 +542,8 @@ export default function TeacherScreen() {
           </View>
         </View>
       ))}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -566,6 +572,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  scrollView: { flex: 1, backgroundColor: 'transparent' },
   gate: { flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center', padding: 24 },
   content: {
     width: '100%',
@@ -596,7 +603,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: COLORS.elevated,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 14,
@@ -608,12 +615,12 @@ const styles = StyleSheet.create({
   dateTimeColumn: { flexGrow: 1, flexBasis: 240, minWidth: 0 },
   pickerLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
   modalScrim: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 20 },
-  pickerSheet: { width: '100%', maxWidth: 430, backgroundColor: COLORS.elevated, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
+  pickerSheet: { width: '100%', maxWidth: 430, backgroundColor: COLORS.elevated, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
   pickerSheetTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700', textTransform: 'capitalize' },
   pickerSheetValue: { color: COLORS.textSecondary, fontSize: 14, marginTop: 4, marginBottom: 12 },
   iosPicker: { width: '100%' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
-  modalButton: { minWidth: 96, minHeight: 46, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  modalButton: { minWidth: 96, minHeight: 46, borderRadius: 4, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
   modalButtonPrimary: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   modalButtonPressed: { opacity: 0.7 },
   modalButtonText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '700' },
@@ -633,7 +640,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: COLORS.surface,
-    borderRadius: 8,
+    borderRadius: 4,
     paddingHorizontal: 12,
     minHeight: 44,
     paddingVertical: 10,
@@ -651,8 +658,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   resultCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: 4,
     padding: 16,
     marginTop: 20,
     alignItems: 'center',
@@ -669,7 +676,7 @@ const styles = StyleSheet.create({
   qrBox: {
     backgroundColor: '#FFFFFF',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 6,
     marginBottom: 12,
   },
   payloadText: {
@@ -690,7 +697,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.elevated,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 10,
+    borderRadius: 6,
     padding: 16,
     marginBottom: 14,
   },
@@ -709,7 +716,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     backgroundColor: COLORS.primarySoft,
-    borderRadius: 6,
+    borderRadius: 3,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
@@ -741,7 +748,7 @@ const styles = StyleSheet.create({
     minHeight: 42,
     justifyContent: 'center',
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.card,

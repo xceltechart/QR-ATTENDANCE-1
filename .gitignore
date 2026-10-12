@@ -27,3 +27,8 @@ expo-dev.*.log
 
 # teaching materials
 docs/
+
+# android build artifacts
+*.apk
+*.aab
+
