@@ -48,8 +48,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e144d1d3-3294-479a-9f03-54b67c43363e"
+        "projectId": "48a4f553-94d6-45d7-857e-789bd76eb20a"
       }
-    }
+    },
+    "owner": "axceldreyess-team"
   }
 }
