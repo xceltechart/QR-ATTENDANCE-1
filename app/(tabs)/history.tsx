@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
 import ScreenWatermark from '@/components/ScreenWatermark';
@@ -15,12 +15,20 @@ import {
 import { useAuth } from '@/lib/auth';
 import { getProfile, type ProfileRole } from '@/lib/profiles';
 
+const STATUS_FILTERS: { label: string; value: AttendanceStatus | 'all' }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Present', value: 'present' },
+  { label: 'Late', value: 'late' },
+  { label: 'Absent', value: 'absent' },
+];
+
 export default function HistoryScreen() {
   const { user } = useAuth();
   const [role, setRole] = useState<ProfileRole>('student');
   const [studentRecords, setStudentRecords] = useState<AttendanceRecord[]>([]);
   const [teacherEvents, setTeacherEvents] = useState<TeacherEventAttendance[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | 'all'>('all');
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -44,8 +52,66 @@ export default function HistoryScreen() {
   );
 
   const isStaff = role === 'teacher' || role === 'admin';
-  const empty = isStaff ? teacherEvents.length === 0 : studentRecords.length === 0;
-  return <View style={styles.container}><ScreenWatermark /><ScrollView style={styles.scrollView} contentContainerStyle={styles.content}><Text style={styles.title}>{isStaff ? 'Event Attendance' : 'Attendance History'}</Text><Text style={styles.subtitle}>{isStaff ? 'Attendance for events you created. Updates in real time.' : 'Your past attendance records.'}</Text>{loading ? <Text style={styles.center}>Loading...</Text> : empty ? <Text style={styles.center}>No attendance records yet.</Text> : isStaff ? teacherEvents.map((event) => <TeacherCard key={event.eventId} event={event} />) : studentRecords.map((record) => <StudentCard key={record.id} record={record} />)}</ScrollView></View>;
+  const visibleRecords =
+    statusFilter === 'all'
+      ? studentRecords
+      : studentRecords.filter((record) => record.status === statusFilter);
+
+  return (
+    <View style={styles.container}>
+      <ScreenWatermark />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{isStaff ? 'Event Attendance' : 'Attendance History'}</Text>
+        <Text style={styles.subtitle}>
+          {isStaff
+            ? 'Attendance for events you created. Updates in real time.'
+            : 'Your past attendance records.'}
+        </Text>
+        {loading ? (
+          <Text style={styles.center}>Loading...</Text>
+        ) : isStaff ? (
+          teacherEvents.length === 0 ? (
+            <Text style={styles.center}>No attendance records yet.</Text>
+          ) : (
+            teacherEvents.map((event) => <TeacherCard key={event.eventId} event={event} />)
+          )
+        ) : studentRecords.length === 0 ? (
+          <Text style={styles.center}>No attendance records yet.</Text>
+        ) : (
+          <>
+            <View style={styles.filters} accessibilityLabel="Filter attendance by status">
+              {STATUS_FILTERS.map((filter) => {
+                const selected = statusFilter === filter.value;
+                return (
+                  <Pressable
+                    key={filter.value}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => setStatusFilter(filter.value)}
+                    style={[styles.filterButton, selected && styles.filterButtonSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterText,
+                        selected && styles.filterTextSelected,
+                      ]}
+                    >
+                      {filter.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {visibleRecords.length === 0 ? (
+              <Text style={styles.center}>No {statusFilter} attendance records.</Text>
+            ) : (
+              visibleRecords.map((record) => <StudentCard key={record.id} record={record} />)
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
 }
 
 function StatusBadge({ status }: { status: AttendanceStatus }) {
@@ -73,6 +139,18 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 5 },
   subtitle: { fontSize: 14, lineHeight: 20, color: COLORS.textSecondary, marginBottom: 20 },
   center: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 28 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  filterButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    backgroundColor: COLORS.elevated,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  filterButtonSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  filterText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
+  filterTextSelected: { color: COLORS.textOnPrimary },
   card: { backgroundColor: COLORS.elevated, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 18, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   grow: { flex: 1 },

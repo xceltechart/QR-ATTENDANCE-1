@@ -3,6 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  TextInput,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -14,19 +15,30 @@ import {
 import AppButton from '@/components/AppButton';
 import ScreenWatermark from '@/components/ScreenWatermark';
 import { COLORS } from '@/constants/colors';
+import { getAttendanceHistory, type AttendanceRecord } from '@/lib/attendance';
+import { useAuth } from '@/lib/auth';
 import { getAvailableEvents, subscribeToEvents, type CloudEvent } from '@/lib/events';
 
 export default function Index() {
+  const { user } = useAuth();
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
   const [events, setEvents] = useState<CloudEvent[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [search, setSearch] = useState('');
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
 
   const loadEvents = useCallback(async () => {
-    const list = await getAvailableEvents();
+    const [list, records] = await Promise.all([
+      getAvailableEvents(),
+      user ? getAttendanceHistory(user.id) : Promise.resolve([]),
+    ]);
     setEvents(list);
+    setAttendance(records);
     setLoadingEvents(false);
-  }, []);
+    setLoadingAttendance(false);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,6 +47,15 @@ export default function Index() {
       return subscribeToEvents(() => void loadEvents());
     }, [loadEvents])
   );
+
+  const query = search.trim().toLocaleLowerCase();
+  const filteredEvents = query
+    ? events.filter((event) =>
+        `${event.title} ${event.venue ?? ''}`.toLocaleLowerCase().includes(query)
+      )
+    : events;
+  const presentCount = attendance.filter((record) => record.status === 'present').length;
+  const lateCount = attendance.filter((record) => record.status === 'late').length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -99,9 +120,46 @@ export default function Index() {
           </View>
         </View>
 
+        <View style={styles.attendanceSection}>
+          <Text style={styles.eventsEyebrow}>YOUR ATTENDANCE</Text>
+          <Text style={styles.eventsTitle}>A quick summary</Text>
+          {loadingAttendance ? (
+            <View style={styles.eventsState}>
+              <ActivityIndicator color={COLORS.primary} />
+              <Text style={styles.eventsStateText}>Loading attendance…</Text>
+            </View>
+          ) : (
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{presentCount}</Text>
+                <Text style={styles.summaryLabel}>Present</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{lateCount}</Text>
+                <Text style={styles.summaryLabel}>Late</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryValue}>{attendance.length}</Text>
+                <Text style={styles.summaryLabel}>Total records</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         <View style={styles.eventsSection}>
           <Text style={styles.eventsEyebrow}>AVAILABLE EVENTS</Text>
           <Text style={styles.eventsTitle}>Open for attendance</Text>
+          {!loadingEvents && events.length > 0 && (
+            <TextInput
+              accessibilityLabel="Search events by title or venue"
+              placeholder="Search by event or venue"
+              placeholderTextColor={COLORS.textSecondary}
+              value={search}
+              onChangeText={setSearch}
+              style={styles.searchInput}
+              returnKeyType="search"
+            />
+          )}
           {loadingEvents ? (
             <View style={styles.eventsState}>
               <ActivityIndicator color={COLORS.primary} />
@@ -114,8 +172,12 @@ export default function Index() {
                 No open events yet. Check back when your teacher announces one.
               </Text>
             </View>
+          ) : filteredEvents.length === 0 ? (
+            <View style={styles.eventsState}>
+              <Text style={styles.eventsStateText}>No events match your search.</Text>
+            </View>
           ) : (
-            events.map((event) => (
+            filteredEvents.map((event) => (
               <View key={event.id} style={styles.eventCard}>
                 <View style={styles.eventCardHeader}>
                   <Text style={styles.eventCardTitle}>{event.title}</Text>
@@ -222,10 +284,42 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 20,
   },
+  attendanceSection: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 20,
+  },
   eventsEyebrow: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, color: COLORS.primary },
   eventsTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary, marginTop: 5, marginBottom: 14 },
+  summaryRow: { flexDirection: 'row', gap: 10 },
+  summaryCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  summaryValue: { fontSize: 22, fontWeight: '700', color: COLORS.primary },
+  summaryLabel: { fontSize: 12, color: COLORS.textSecondary, marginTop: 3, textAlign: 'center' },
   eventsState: { alignItems: 'center', gap: 10, paddingVertical: 24 },
   eventsStateText: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20, maxWidth: 320 },
+  searchInput: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 4,
+    color: COLORS.textPrimary,
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
   eventCard: {
     backgroundColor: COLORS.card,
     borderWidth: 1,
