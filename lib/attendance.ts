@@ -96,10 +96,12 @@ export async function registerAttendance(rawPayload: string): Promise<RegisterRe
   if (error?.code === '42501' || error?.message?.toLowerCase().includes('row-level security')) {
     return {
       success: false,
-      message: 'Attendance blocked: this event is closed or your account cannot record attendance.',
+      message: 'Attendance was blocked. Make sure the event is open and you are signed in with a student account.',
     };
   }
-  if (error) return { success: false, message: 'Could not record attendance.' };
+  if (error) {
+    return { success: false, message: `Could not record attendance: ${error.message}` };
+  }
 
   return {
     success: true,

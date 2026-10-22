@@ -26,16 +26,25 @@ export default function ScanScreen() {
   }, [user]));
 
   if (!role) return <CenteredMessage title="Checking your account..." />;
-  if (role !== 'student') return <CenteredMessage title="Students Only" subtitle="QR attendance scanning is available to student accounts." />;
+  if (role !== 'student') return <CenteredMessage title="Students Only" subtitle="Teachers and admins can reopen events, but a student account must scan the QR code to record attendance." />;
   if (!permission) return <View style={styles.container} />;
   if (!permission.granted) return <View style={styles.container}><ScreenWatermark /><Text style={styles.title}>Camera Permission Needed</Text><Text style={styles.subtitle}>We need access to your camera to scan QR codes.</Text><AppButton theme="primary" title="Grant Permission" icon="camera-alt" onPress={requestPermission} /></View>;
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
     setLastData(data);
-    const result = await registerAttendance(data);
-    setMessage(result.message);
-    setSuccess(result.success);
+    try {
+      const result = await registerAttendance(data);
+      setMessage(result.message);
+      setSuccess(result.success);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Could not record attendance: ${error.message}`
+          : 'Could not record attendance. Check your connection and try again.'
+      );
+      setSuccess(false);
+    }
   };
 
   return <View style={styles.container}><CameraView style={styles.camera} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }} onBarcodeScanned={scanned ? undefined : handleBarcodeScanned} /><View style={styles.overlay}><Text style={styles.overlayText}>{scanned ? 'QR Code detected!' : 'Point your camera at a QR code'}</Text>{message && <Text style={[styles.result, { color: success ? COLORS.success : COLORS.danger }]}>{message}</Text>}{lastData && <Text style={styles.data} numberOfLines={3}>{lastData}</Text>}{scanned && <AppButton theme="primary" title="Scan Again" icon="refresh" onPress={() => { setScanned(false); setLastData(null); setMessage(null); }} />}</View></View>;
